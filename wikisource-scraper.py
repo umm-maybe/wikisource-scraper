@@ -4,8 +4,8 @@ import sys
 import re
 import logging
 import requests
-import pdfkit
 from bs4 import BeautifulSoup, UnicodeDammit
+from wikitextparser import remove_markup, parse
 
 logLevel = logging.INFO
 
@@ -37,37 +37,14 @@ def convert_from_url(url: str):
     document = BeautifulSoup(res.text, features='lxml')
     text_area = document.body.find('div', id='mw-content-text')
     output_text = text_area.select('div p')
-    text = '''
-    <head>
-        <meta charset="utf-8">
-    </head>
-    <body>
-    '''
+    text = ""
     for p in output_text :
-        text += str(p)
-    text += '</body>'
-
-    log.debug("doc = " + text)
+        text += parse(str(p)).plain_text()
 
     filename_base = match.group(1).strip().replace('/', '-')
-    filename = filename_base + ".pdf"
-
-    options = {
-            'page-size': 'Letter',
-            'encoding': 'UTF-8',
-            'title': filename_base,
-            'margin-top': '1in',
-            'margin-bottom': '1in',
-            'margin-left': '1in',
-            'margin-right': '1in',
-            'disable-external-links': '',
-            'disable-javascript': '',
-            'minimum-font-size': '12'
-            }
-
-    pdfkit.from_string(text, filename, options=options)
-
-    res.close()
+    filename = filename_base + ".txt"
+    with open(filename, "w") as f:
+        f.write(text)
     return filename
 
 if __name__ == '__main__':
@@ -76,7 +53,7 @@ if __name__ == '__main__':
         log.info("Starting conversion for: " + url)
         result = convert_from_url(url)
         if result:
-            log.info("Converted " + url + " to pdf file: " + result)
+            log.info("Converted " + url + " to text file: " + result)
         else:
             log.warning("Conversion failed for " + url)
     sys.exit(0)
